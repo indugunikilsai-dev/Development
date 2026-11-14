@@ -18,7 +18,9 @@ app.disable('x-powered-by');
 // Each college's API lives on its own https host (chosen at runtime from the registry), so API calls
 // and the monitoring dashboards (Grafana) may go to any https origin. Scripts may only come from this
 // origin. Styles allow inline because PrimeNG and Monaco inject <style> elements at runtime.
+// In development the FreeCAD page frames the local FuCad stream (http://localhost:3000).
 const devSources = isDevMode() ? ' http://localhost:* ws://localhost:*' : '';
+const devFrames = isDevMode() ? ' http://localhost:*' : '';
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self'",
@@ -26,7 +28,7 @@ const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   `connect-src 'self' https:${devSources}`,
-  "frame-src https:",
+  `frame-src https:${devFrames}`,
   "worker-src 'self' blob:",
   "media-src 'self' blob:",
   "object-src 'none'",

@@ -39,6 +39,9 @@ testem.log
 /typings
 __screenshots__/
 
+# Designs saved from the FuCad container (fucad-stream/docker-compose.yml)
+/fucad-files
+
 # System files
 .DS_Store
 Thumbs.db

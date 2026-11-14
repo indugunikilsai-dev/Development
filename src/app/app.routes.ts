@@ -3,6 +3,7 @@ import { Admin } from './features/admin/admin';
 import { authGuard } from './core/auth/auth-guard';
 import { onboardingGuard, onboardingStepGuard } from './core/guards/onboarding-guard';
 import { assignmentGuard } from './core/guards/assignment-guard';
+import { studentCadGuard } from './core/guards/student-cad-guard';
 import { defaultChildRedirect, permissionGuard } from './core/guards/permission-guard';
 // Order matters: the first route the user has permission for becomes their
 // landing page after login (see defaultChildRedirect).
@@ -50,6 +51,9 @@ const mainChildren: Routes = [
       },
       {
         path:'domain',loadComponent: () => import('./shared/components/domain/domain').then(m => m.DomainComponent), data: { permission: 'VIEW_DOMAIN' }
+      },
+      {
+        path:'cad-management',loadComponent: () => import('./shared/components/cad/cad').then(m => m.CadComponent), data: { permission: 'VIEW_CAD' }
       },
       {
         path:'course',loadComponent: () => import('./shared/components/course/course').then(m => m.Course), data: { permission: 'VIEW_COURSE' }
@@ -109,6 +113,9 @@ const mainChildren: Routes = [
         path:'domain-course-mapping',loadComponent: () => import('./shared/components/domaincourse/domaincourse').then(m => m.DomainCourseMapComponent), data: { permission: 'VIEW_DOMAIN_COURSE_MAP' }
       },
       {
+        path:'domain-cad-mapping',loadComponent: () => import('./shared/components/domaincadmap/domaincadmap').then(m => m.DomainCadMapComponent), data: { permission: 'VIEW_DOMAIN_CAD_MAP' }
+      },
+      {
         path:'course-assignment-mapping',loadComponent: () => import('./shared/components/courseassignment/courseassignment').then(m => m.CourseAssignmentMapComponent), data: { permission: 'VIEW_COURSE_ASSIGNMENT_MAP' }
       },
       {
@@ -165,6 +172,15 @@ const mainChildren: Routes = [
       },
       {
         path:'task-submissions',loadComponent: () => import('./shared/components/task-submissions/task-submissions').then(m => m.TaskSubmissions), data: { permission: 'VIEW_STUDENT_TASK_SUBMISSION' }
+      },
+      {
+        // FuCad 3D design workspace: needs VIEW_STUDENT_CADS and a CAD mapped to one of the student's domains.
+        path:'fucad', canActivate: [studentCadGuard], loadComponent: () => import('./shared/components/fucad/fucad').then(m => m.Fucad), data: { permission: 'VIEW_STUDENT_CADS' }
+      },
+      {
+        // The real FuCad desktop application, streamed from the fucad-stream container.
+        // Same rule as FuCad: VIEW_STUDENT_CADS and a CAD mapped to one of the student's domains.
+        path:'freecad', canActivate: [studentCadGuard], loadComponent: () => import('./shared/components/freecad/freecad').then(m => m.Freecad), data: { permission: 'VIEW_STUDENT_CADS' }
       },
       {
         path:'change_password',loadComponent: () => import('./shared/components/change-password/change-password').then(m => m.ChangePassword)

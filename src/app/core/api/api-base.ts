@@ -3,6 +3,9 @@ import { environment } from '../../../environments/environment';
 // Set per build configuration in src/environments (local API for `ng serve`, the deployed one otherwise).
 export const DEFAULT_API_BASE = environment.defaultApiBase;
 
+// True when one API serves every college (local development), so no per-college host lookup is needed.
+export const SINGLE_INSTANCE = environment.singleInstance;
+
 const KEY = 'apibase';
 
 // Each college runs in its own container with its own host. When the user picks a college, the

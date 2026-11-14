@@ -7,7 +7,7 @@ import { FormGroup } from '@angular/forms';
 import { Validators } from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
-import { setApiBase } from '../../../core/api/api-base';
+import { DEFAULT_API_BASE, SINGLE_INSTANCE, setApiBase } from '../../../core/api/api-base';
 import { CollegeService } from '../../services/college/college-service';
 import { writeStorage } from '../../../core/storage';
 @Component({
@@ -56,6 +56,10 @@ export class College implements OnInit {
       if(this.form.valid){
         const college = this.form.value.college;
         this.errorMessage = '';
+        if (SINGLE_INSTANCE) {
+          this.proceed(college, DEFAULT_API_BASE);
+          return;
+        }
         // Every college runs in its own instance; there is no fallback to another college's instance.
         this.api.resolveapibase(college.code).subscribe({
           next: (res: any) => {

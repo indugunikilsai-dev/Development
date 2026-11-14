@@ -1,0 +1,8 @@
+# Applies to the FuCad build context (D:\devo\FuCad). Leaves out the Windows build output,
+# the Windows pixi environment and git history, none of which the Linux build uses.
+.git
+**/.git
+.pixi
+build
+**/__pycache__
+**/*.pyc

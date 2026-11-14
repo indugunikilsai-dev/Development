@@ -2,4 +2,10 @@
 export const environment = {
   // Registry / default instance: the college list and the per-college host lookup before login.
   defaultApiBase: 'https://college-a.178-104-255-148.sslip.io/api',
+  // Each college has its own instance: after picking one, look up its host (Deployment/resolve).
+  singleInstance: false,
+  // FuCad desktop stream for the FreeCAD page (fucad-stream/). Empty until it is deployed over HTTPS.
+  fucadStreamUrl: '',
+  // FuCad download service (the "Downloads" button). Empty until it is deployed over HTTPS.
+  fucadFilesUrl: '',
 };

@@ -1,0 +1,380 @@
+<div class="fc">
+
+  <!-- =========================
+       TOOLBAR
+  ========================= -->
+  <div class="fc-bar" role="toolbar" aria-label="FuCad tools">
+
+    <div class="fc-doc">
+      <span class="fc-brand">Fu<b>Cad</b></span>
+      <input
+        class="fc-docname"
+        [value]="docName()"
+        maxlength="60"
+        aria-label="Document name"
+        (change)="setDocName($any($event.target).value)"
+        (keydown.enter)="$any($event.target).blur()">
+    </div>
+
+    <div class="fc-group">
+      <span class="fc-group-title">File</span>
+      <div class="fc-group-row">
+        <div class="fc-menu-wrap">
+          <button type="button" class="fc-btn" title="File" [class.is-on]="menu() === 'file'" (click)="toggleMenu('file', $event)">
+            <span class="fc-ic" [innerHTML]="icons['open']"></span><span class="fc-lbl">File</span>
+          </button>
+          @if (menu() === 'file') {
+            <div class="fc-menu" role="menu">
+              <button type="button" role="menuitem" (click)="newDocument()"><span class="fc-ic" [innerHTML]="icons['new']"></span>New document</button>
+              <button type="button" role="menuitem" (click)="projectInput.click()"><span class="fc-ic" [innerHTML]="icons['open']"></span>Open project (.fucad)…</button>
+              <button type="button" role="menuitem" (click)="save()"><span class="fc-ic" [innerHTML]="icons['save']"></span>Save project<kbd>Ctrl+S</kbd></button>
+              <hr>
+              <button type="button" role="menuitem" (click)="modelInput.click()"><span class="fc-ic" [innerHTML]="icons['import']"></span>Import STL / OBJ…</button>
+            </div>
+          }
+        </div>
+        <div class="fc-menu-wrap">
+          <button type="button" class="fc-btn" title="Export" [class.is-on]="menu() === 'export'" (click)="toggleMenu('export', $event)">
+            <span class="fc-ic" [innerHTML]="icons['export']"></span><span class="fc-lbl">Export</span>
+          </button>
+          @if (menu() === 'export') {
+            <div class="fc-menu" role="menu">
+              <div class="fc-menu-note">{{ selectedIds().length ? 'Exports the selected objects' : 'Exports every visible object' }}</div>
+              <button type="button" role="menuitem" (click)="export('stl')"><span class="fc-ic" [innerHTML]="icons['export']"></span>STL (3D printing)</button>
+              <button type="button" role="menuitem" (click)="export('obj')"><span class="fc-ic" [innerHTML]="icons['export']"></span>OBJ</button>
+              <button type="button" role="menuitem" (click)="exportImage()"><span class="fc-ic" [innerHTML]="icons['image']"></span>Image of the view (PNG)</button>
+            </div>
+          }
+        </div>
+        <input #projectInput type="file" accept=".fucad,.json" hidden (change)="openProject(projectInput)">
+        <input #modelInput type="file" accept=".stl,.obj" multiple hidden (change)="importModel(modelInput)">
+      </div>
+    </div>
+
+    <div class="fc-group">
+      <span class="fc-group-title">Create</span>
+      <div class="fc-group-row">
+        @for (p of primitives; track p.kind) {
+          <button type="button" class="fc-btn" [title]="'Add ' + p.kind" (click)="add(p.kind)">
+            <span class="fc-ic fc-ic-solid" [innerHTML]="icons[p.kind]"></span><span class="fc-lbl">{{ p.kind }}</span>
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="fc-group">
+      <span class="fc-group-title">Modify</span>
+      <div class="fc-group-row">
+        <button type="button" class="fc-btn" title="Move (W)" [class.is-on]="state()?.tool === 'select' && state()?.mode === 'translate'" (click)="setMode('translate')">
+          <span class="fc-ic" [innerHTML]="icons['translate']"></span><span class="fc-lbl">Move</span>
+        </button>
+        <button type="button" class="fc-btn" title="Rotate (E)" [class.is-on]="state()?.tool === 'select' && state()?.mode === 'rotate'" (click)="setMode('rotate')">
+          <span class="fc-ic" [innerHTML]="icons['rotate']"></span><span class="fc-lbl">Rotate</span>
+        </button>
+        <button type="button" class="fc-btn" title="Scale (R)" [class.is-on]="state()?.tool === 'select' && state()?.mode === 'scale'" (click)="setMode('scale')">
+          <span class="fc-ic" [innerHTML]="icons['scale']"></span><span class="fc-lbl">Scale</span>
+        </button>
+        <button type="button" class="fc-btn" title="Snap: 1 mm, 15°, 0.1×" [class.is-on]="state()?.snap" (click)="toggleSnap()">
+          <span class="fc-ic" [innerHTML]="icons['snap']"></span><span class="fc-lbl">Snap</span>
+        </button>
+        <button type="button" class="fc-btn" title="Drop the selection onto the grid" [disabled]="!selectedIds().length" (click)="dropToGrid()">
+          <span class="fc-ic" [innerHTML]="icons['drop']"></span><span class="fc-lbl">Drop</span>
+        </button>
+        <button type="button" class="fc-btn" title="Duplicate (Ctrl+D)" [disabled]="!selectedIds().length" (click)="duplicate()">
+          <span class="fc-ic" [innerHTML]="icons['duplicate']"></span><span class="fc-lbl">Copy</span>
+        </button>
+        <button type="button" class="fc-btn" title="Delete (Del)" [disabled]="!selectedIds().length" (click)="remove()">
+          <span class="fc-ic" [innerHTML]="icons['delete']"></span><span class="fc-lbl">Delete</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="fc-group">
+      <span class="fc-group-title">Combine</span>
+      <div class="fc-group-row">
+        <button type="button" class="fc-btn" title="Union: merge the selected solids" [disabled]="selectedIds().length < 2" (click)="combine('union')">
+          <span class="fc-ic" [innerHTML]="icons['Union']"></span><span class="fc-lbl">Union</span>
+        </button>
+        <button type="button" class="fc-btn" title="Cut: subtract the other selected solids from the first one" [disabled]="selectedIds().length < 2" (click)="combine('cut')">
+          <span class="fc-ic" [innerHTML]="icons['Cut']"></span><span class="fc-lbl">Cut</span>
+        </button>
+        <button type="button" class="fc-btn" title="Intersect: keep only the overlap" [disabled]="selectedIds().length < 2" (click)="combine('intersect')">
+          <span class="fc-ic" [innerHTML]="icons['Intersection']"></span><span class="fc-lbl">Intersect</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="fc-group">
+      <span class="fc-group-title">Inspect</span>
+      <div class="fc-group-row">
+        <button type="button" class="fc-btn" title="Measure distance (M)" [class.is-on]="state()?.tool === 'measure'" (click)="toggleTool('measure')">
+          <span class="fc-ic" [innerHTML]="icons['measure']"></span><span class="fc-lbl">Measure</span>
+        </button>
+        <button type="button" class="fc-btn" title="Undo (Ctrl+Z)" [disabled]="!state()?.canUndo" (click)="undo()">
+          <span class="fc-ic" [innerHTML]="icons['undo']"></span><span class="fc-lbl">Undo</span>
+        </button>
+        <button type="button" class="fc-btn" title="Redo (Ctrl+Y)" [disabled]="!state()?.canRedo" (click)="redo()">
+          <span class="fc-ic" [innerHTML]="icons['redo']"></span><span class="fc-lbl">Redo</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="fc-group">
+      <span class="fc-group-title">View</span>
+      <div class="fc-group-row">
+        <button type="button" class="fc-btn" title="Fit all (F)" (click)="fit()">
+          <span class="fc-ic" [innerHTML]="icons['fit']"></span><span class="fc-lbl">Fit</span>
+        </button>
+        <button type="button" class="fc-btn" title="Wireframe" [class.is-on]="state()?.wireframe" (click)="toggleWireframe()">
+          <span class="fc-ic" [innerHTML]="icons['wireframe']"></span><span class="fc-lbl">Wire</span>
+        </button>
+        <button type="button" class="fc-btn" title="Grid" [class.is-on]="state()?.grid" (click)="toggleGrid()">
+          <span class="fc-ic" [innerHTML]="icons['grid']"></span><span class="fc-lbl">Grid</span>
+        </button>
+        <button type="button" class="fc-btn" title="Show or hide the side panels" [class.is-on]="panelsOpen()" (click)="panelsOpen.set(!panelsOpen())">
+          <span class="fc-ic" [innerHTML]="icons['front']"></span><span class="fc-lbl">Panels</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       BODY: TREE · VIEWPORT · PROPERTIES
+  ========================= -->
+  <div class="fc-body" [class.no-panels]="!panelsOpen()">
+
+    <!-- Model tree -->
+    <aside class="fc-panel fc-tree" aria-label="Model">
+      <div class="fc-panel-head">
+        <span>Model</span>
+        <span class="fc-count">{{ objects().length }}</span>
+      </div>
+      <div class="fc-tree-doc">
+        <span class="fc-ic" [innerHTML]="icons['new']"></span>{{ docName() }}
+      </div>
+      <ul class="fc-tree-list">
+        @for (o of objects(); track o.id) {
+          <li
+            class="fc-row"
+            [class.is-selected]="selectedIds().includes(o.id)"
+            [class.is-hidden]="!o.visible"
+            (click)="selectRow(o, $event)"
+            (dblclick)="startRename(o)">
+            <span class="fc-ic fc-row-ic" [style.color]="o.color" [innerHTML]="icon(o.kind)"></span>
+            @if (renamingId() === o.id) {
+              <input
+                class="fc-rename"
+                [id]="'fc-rename-' + o.id"
+                [value]="o.name"
+                maxlength="60"
+                (click)="$event.stopPropagation()"
+                (keydown.enter)="finishRename(o, $any($event.target).value)"
+                (keydown.escape)="renamingId.set(null)"
+                (blur)="finishRename(o, $any($event.target).value)">
+            } @else {
+              <span class="fc-row-name" [title]="o.name + ' (' + o.kind + ')'">{{ o.name }}</span>
+            }
+            <button
+              type="button"
+              class="fc-eye"
+              [title]="o.visible ? 'Hide' : 'Show'"
+              (click)="toggleVisible(o, $event)">
+              <span class="fc-ic" [innerHTML]="o.visible ? icons['eye'] : icons['eyeOff']"></span>
+            </button>
+          </li>
+        } @empty {
+          <li class="fc-empty-row">No objects yet</li>
+        }
+      </ul>
+      @if (objects().length) {
+        <button type="button" class="fc-link" (click)="showAll()">Show all</button>
+      }
+    </aside>
+
+    <!-- Viewport -->
+    <section class="fc-view">
+      <div #viewport class="fc-viewport"></div>
+
+      <div class="fc-views" aria-label="Standard views">
+        <button type="button" title="Isometric (0)" (click)="setView('iso')"><span class="fc-ic" [innerHTML]="icons['iso']"></span></button>
+        <button type="button" title="Front (1)" (click)="setView('front')"><span class="fc-ic" [innerHTML]="icons['front']"></span></button>
+        <button type="button" title="Top (2)" (click)="setView('top')"><span class="fc-ic" [innerHTML]="icons['top']"></span></button>
+        <button type="button" title="Right (3)" (click)="setView('right')"><span class="fc-ic" [innerHTML]="icons['right']"></span></button>
+      </div>
+
+      @if (loading()) {
+        <div class="fc-overlay">Starting the 3D workspace…</div>
+      }
+      @if (loadError(); as err) {
+        <div class="fc-overlay fc-overlay-error">{{ err }}</div>
+      }
+      @if (!loading() && !loadError() && !objects().length) {
+        <div class="fc-welcome">
+          <strong>Start designing</strong>
+          <span>Add a shape from <b>Create</b>, or import an STL/OBJ file exported from FuCad / FreeCAD.</span>
+          <div class="fc-welcome-actions">
+            <button type="button" (click)="add('Box')"><span class="fc-ic" [innerHTML]="icons['Box']"></span>Box</button>
+            <button type="button" (click)="add('Cylinder')"><span class="fc-ic" [innerHTML]="icons['Cylinder']"></span>Cylinder</button>
+            <button type="button" (click)="modelInput.click()"><span class="fc-ic" [innerHTML]="icons['import']"></span>Import</button>
+          </div>
+        </div>
+      }
+
+      @if (state()?.tool === 'measure') {
+        <div class="fc-measure">
+          <div class="fc-measure-head">
+            <strong>Measure</strong>
+            <button type="button" title="Close (Esc)" (click)="toggleTool('measure')"><span class="fc-ic" [innerHTML]="icons['close']"></span></button>
+          </div>
+          @if (state()?.measure; as m) {
+            <div class="fc-measure-main">{{ fmt(m.distance, 3) }} <small>mm</small></div>
+            <div class="fc-measure-axes">
+              <span class="ax-x">ΔX {{ fmt(m.dx, 3) }}</span>
+              <span class="ax-y">ΔY {{ fmt(m.dy, 3) }}</span>
+              <span class="ax-z">ΔZ {{ fmt(m.dz, 3) }}</span>
+            </div>
+            <button type="button" class="fc-link" (click)="clearMeasure()">Clear</button>
+          } @else {
+            <div class="fc-measure-hint">{{ state()?.measurePoints === 1 ? 'Now click the second point.' : 'Click two points on your shapes.' }}</div>
+          }
+        </div>
+      }
+
+      @if (toast(); as t) {
+        <div class="fc-toast" [class.is-error]="t.kind === 'error'" role="status">{{ t.text }}</div>
+      }
+    </section>
+
+    <!-- Properties -->
+    <aside class="fc-panel fc-props" aria-label="Properties">
+      <div class="fc-panel-head"><span>Properties</span></div>
+
+      @if (active(); as o) {
+        <div class="fc-prop-scroll">
+          <div class="fc-section">
+            <div class="fc-kind"><span class="fc-ic" [innerHTML]="icon(o.kind)"></span>{{ o.kind }}</div>
+            <label class="fc-field">
+              <span>Name</span>
+              <input type="text" [value]="o.name" maxlength="60" (change)="rename(o, $any($event.target).value)" (keydown.enter)="$any($event.target).blur()">
+            </label>
+            <label class="fc-field">
+              <span>Color</span>
+              <div class="fc-color">
+                <input type="color" [value]="o.color" (change)="setColor(o, $any($event.target).value)">
+                <code>{{ o.color }}</code>
+              </div>
+            </label>
+          </div>
+
+          @if (activeParams().length) {
+            <div class="fc-section">
+              <div class="fc-section-title">Dimensions <small>mm</small></div>
+              @for (p of activeParams(); track p.spec.key) {
+                <label class="fc-field">
+                  <span>{{ p.spec.label }}</span>
+                  <input
+                    #pin
+                    type="number"
+                    [min]="p.spec.min"
+                    [step]="p.spec.integer ? 1 : 0.5"
+                    [value]="p.value"
+                    (change)="setParam(o, p.spec.key, pin)"
+                    (keydown.enter)="pin.blur()">
+                </label>
+              }
+            </div>
+          } @else {
+            <div class="fc-section">
+              <div class="fc-section-title">Shape</div>
+              <p class="fc-note">{{ o.kind === 'Import' ? 'Imported mesh.' : 'Result of a boolean operation.' }} Its dimensions are fixed; use Scale to resize it.</p>
+            </div>
+          }
+
+          <div class="fc-section">
+            <div class="fc-section-title">Placement</div>
+            <div class="fc-xyz-head"><span></span><span class="ax-x">X</span><span class="ax-y">Y</span><span class="ax-z">Z</span></div>
+            <div class="fc-xyz">
+              <span>Position</span>
+              @for (i of axisIndex; track i) {
+                <input #posIn type="number" step="1" [value]="o.position[i]" [attr.aria-label]="'Position ' + axes[i]" (change)="setPlacement(o, 'position', i, posIn)" (keydown.enter)="posIn.blur()">
+              }
+            </div>
+            <div class="fc-xyz">
+              <span>Rotation°</span>
+              @for (i of axisIndex; track i) {
+                <input #rotIn type="number" step="15" [value]="o.rotation[i]" [attr.aria-label]="'Rotation ' + axes[i]" (change)="setPlacement(o, 'rotation', i, rotIn)" (keydown.enter)="rotIn.blur()">
+              }
+            </div>
+            <div class="fc-xyz">
+              <span>Scale</span>
+              @for (i of axisIndex; track i) {
+                <input #sclIn type="number" step="0.1" [value]="o.scale[i]" [attr.aria-label]="'Scale ' + axes[i]" (change)="setPlacement(o, 'scale', i, sclIn)" (keydown.enter)="sclIn.blur()">
+              }
+            </div>
+          </div>
+
+          <div class="fc-section">
+            <div class="fc-section-title">Info</div>
+            <dl class="fc-info">
+              <dt>Size</dt><dd>{{ fmt(o.size[0]) }} × {{ fmt(o.size[1]) }} × {{ fmt(o.size[2]) }} mm</dd>
+              <dt>Triangles</dt><dd>{{ o.triangles.toLocaleString() }}</dd>
+            </dl>
+          </div>
+        </div>
+      } @else if (selectedObjects().length > 1) {
+        <div class="fc-prop-scroll">
+          <div class="fc-section">
+            <div class="fc-section-title">{{ selectedObjects().length }} objects selected</div>
+            <ul class="fc-multi">
+              @for (o of selectedObjects(); track o.id; let first = $first) {
+                <li><span class="fc-ic" [innerHTML]="icon(o.kind)"></span>{{ o.name }} @if (first) {<em>base</em>}</li>
+              }
+            </ul>
+            <p class="fc-note"><b>Cut</b> keeps the first selected object (the base) and removes the others from it.</p>
+            <div class="fc-multi-actions">
+              <button type="button" (click)="combine('union')"><span class="fc-ic" [innerHTML]="icons['Union']"></span>Union</button>
+              <button type="button" (click)="combine('cut')"><span class="fc-ic" [innerHTML]="icons['Cut']"></span>Cut</button>
+              <button type="button" (click)="combine('intersect')"><span class="fc-ic" [innerHTML]="icons['Intersection']"></span>Intersect</button>
+            </div>
+          </div>
+        </div>
+      } @else {
+        <div class="fc-prop-scroll">
+          <div class="fc-section">
+            <p class="fc-note">Select an object to edit its dimensions, placement and color.</p>
+          </div>
+          <div class="fc-section">
+            <div class="fc-section-title">Shortcuts</div>
+            <dl class="fc-keys">
+              <dt><kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd></dt><dd>Move · Rotate · Scale</dd>
+              <dt><kbd>Ctrl</kbd>+click</dt><dd>Add to selection</dd>
+              <dt><kbd>Ctrl+D</kbd></dt><dd>Duplicate</dd>
+              <dt><kbd>Del</kbd></dt><dd>Delete</dd>
+              <dt><kbd>H</kbd> / <kbd>Shift+H</kbd></dt><dd>Hide / show all</dd>
+              <dt><kbd>M</kbd></dt><dd>Measure</dd>
+              <dt><kbd>F</kbd></dt><dd>Fit view</dd>
+              <dt><kbd>0</kbd>–<kbd>6</kbd></dt><dd>Iso, front, top, right, back, bottom, left</dd>
+              <dt><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd></dt><dd>Undo / redo</dd>
+              <dt><kbd>Ctrl+S</kbd></dt><dd>Save project</dd>
+            </dl>
+          </div>
+        </div>
+      }
+    </aside>
+
+  </div>
+
+
+  <!-- =========================
+       STATUS BAR
+  ========================= -->
+  <footer class="fc-status">
+    <span class="fc-hint">{{ hint() }}</span>
+    <span class="fc-stat">{{ objects().length }} object{{ objects().length === 1 ? '' : 's' }}</span>
+    <span class="fc-stat">{{ totalTriangles().toLocaleString() }} triangles</span>
+    <span class="fc-stat">mm · Z up</span>
+  </footer>
+
+</div>

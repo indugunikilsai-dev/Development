@@ -1,0 +1,380 @@
+<div *ngIf="auth.hasPermission('VIEW_DOMAIN_CAD_MAP'); else noPermission"
+    class="min-h-screen bg-black p-6">
+
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row justify-between items-center gap-5 mb-8">
+
+        <div>
+            <h1 class="text-3xl font-bold text-white">
+                Domain CAD Mapping
+            </h1>
+
+            <p class="text-zinc-400 mt-1">
+                Map CADs to Domains
+            </p>
+        </div>
+
+        <div class="flex items-center gap-4">
+
+            <div class="bg-zinc-950 rounded-xl shadow px-6 py-4">
+                <p class="text-sm text-zinc-400">
+                    Total Mappings
+                </p>
+
+                <h2 class="text-3xl font-bold text-white">
+                    {{ mappings.length || 0 }}
+                </h2>
+
+            </div>
+
+            <button
+                *ngIf="auth.hasPermission('CREATE_DOMAIN_CAD_MAP')"
+                type="button"
+                (click)="openAddModal()"
+                class="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-opacity h-full bg-(--accent) hover:bg-(--accent-hover) text-(--on-accent) shadow-[0_8px_20px_-8px_rgba(var(--accent-rgb),0.8)] cursor-pointer">
+                <span class="text-lg leading-none">+</span>
+                Add Mapping
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- Search -->
+
+    <div class="mb-5">
+
+        <input
+            type="text"
+            [(ngModel)]="searchText"
+            (keyup)="search()"
+            [ngModelOptions]="{standalone:true}"
+            placeholder="Search by domain or CAD..."
+            class="w-full md:w-96 border border-white/15 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-(--accent) focus:border-transparent bg-black text-white placeholder:text-zinc-600">
+
+    </div>
+
+    <!-- ================= TABLE ================= -->
+
+    <div class="bg-zinc-950 rounded-2xl shadow-lg overflow-hidden">
+
+        <div class="bg-zinc-900 border-b border-white/10 text-white px-6 py-4">
+
+            <h2 class="text-xl font-bold">
+                Mappings List
+            </h2>
+
+        </div>
+
+        <div class="overflow-x-auto">
+
+            <table class="min-w-full">
+
+                <thead class="bg-zinc-900">
+
+                    <tr>
+
+                        <th class="px-5 py-4 text-left">#</th>
+
+                        <th class="px-5 py-4 text-left">Domain</th>
+
+                        <th class="px-5 py-4 text-left">CAD</th>
+
+                        <th class="px-5 py-4 text-center">Year</th>
+
+                        <th class="px-5 py-4 text-center">Semester</th>
+
+                        <th
+                            *ngIf="auth.hasPermission('UPDATE_DOMAIN_CAD_MAP') || auth.hasPermission('DELETE_DOMAIN_CAD_MAP')"
+                            class="px-5 py-4 text-center">
+
+                            Actions
+
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr
+                        *ngFor="let item of filteredMappings; let i = index"
+                        class="border-b hover:bg-white/[0.04] border-white/10">
+
+                        <!-- Serial Number -->
+                        <td class="px-5 py-4">
+                            {{ i + 1 }}
+                        </td>
+
+                        <!-- Domain -->
+                        <td class="px-5 py-4 font-semibold">
+                            {{ item.domainName }}
+                        </td>
+
+                        <!-- CAD -->
+                        <td class="px-5 py-4">
+                            {{ item.cadName }}
+                        </td>
+
+                        <!-- Year -->
+                        <td class="px-5 py-4 text-center">
+                            {{ item.yearNumber }}
+                        </td>
+
+                        <!-- Semester -->
+                        <td class="px-5 py-4 text-center">
+                            {{ item.semester }}
+                        </td>
+
+                        <!-- Actions -->
+                        <td
+                            *ngIf="auth.hasPermission('UPDATE_DOMAIN_CAD_MAP') || auth.hasPermission('DELETE_DOMAIN_CAD_MAP')"
+                            class="px-5 py-4">
+
+                            <div class="flex justify-center gap-3">
+
+                                <!-- Edit -->
+                                <button
+                                    *ngIf="auth.hasPermission('UPDATE_DOMAIN_CAD_MAP')"
+                                    type="button"
+                                    (click)="edit(item)"
+                                    class="px-4 py-2 rounded-lg transition bg-(--accent)/15 border border-(--accent)/50 text-(--accent-text-strong) hover:bg-(--accent) hover:text-(--on-accent) cursor-pointer">
+
+                                    Edit
+
+                                </button>
+
+                                <!-- Delete -->
+                                <button
+                                    *ngIf="auth.hasPermission('DELETE_DOMAIN_CAD_MAP')"
+                                    type="button"
+                                    (click)="delete(item.id)"
+                                    class="px-4 py-2 rounded-lg transition bg-rose-500/10 border border-rose-500/40 text-rose-400 hover:bg-rose-600 hover:text-white cursor-pointer">
+
+                                    Delete
+
+                                </button>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    <!-- Empty State -->
+
+                    <tr *ngIf="filteredMappings.length === 0 && !loading">
+
+                        <td
+                            colspan="6"
+                            class="text-center py-12 text-zinc-400 font-medium">
+
+                            No Mapping Found
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <!-- ================= ADD / EDIT DIALOG ================= -->
+
+    <div
+        *ngIf="showModal"
+        class="dlg-overlay">
+
+        <div class="dlg">
+
+            <!-- Dialog Header -->
+
+            <div class="dlg-header">
+                <div class="dlg-heading">
+                    <span class="dlg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 7h6m-6 4h4" /></svg></span>
+                    <div class="min-w-0">
+                        <h3 class="dlg-title">{{ editMode ? 'Edit Mapping' : 'Add Mapping' }}</h3>
+                        <p class="dlg-subtitle">Fill in the details below.</p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    (click)="closeModal()"
+                    class="dlg-close" aria-label="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-width="2" d="M6 6l12 12M18 6 6 18" /></svg>
+                </button>
+            </div>
+
+            <!-- Dialog Body -->
+
+            <form [formGroup]="domainCadForm" (ngSubmit)="save()" class="dlg-body" *ngIf="domainCadForm">
+
+                <div class="dlg-field">
+                    <label class="dlg-label">
+                        Domain
+                    </label>
+                    <select
+                        formControlName="domainName"
+                        class="dlg-input">
+
+                        <option value="">Select Domain</option>
+
+                        <option
+                            *ngFor="let domain of domains"
+                            [value]="domain.name">
+
+                            {{ domain.name }}
+
+                        </option>
+
+                    </select>
+                    <app-field-error [control]="domainCadForm.get('domainName')" label="Domain" />
+                </div>
+
+                <div class="dlg-field">
+                    <label class="dlg-label">
+                        CAD
+                    </label>
+                    <select
+                        formControlName="cadName"
+                        class="dlg-input">
+
+                        <option value="">Select CAD</option>
+
+                        <option
+                            *ngFor="let cad of cads"
+                            [value]="cad.name">
+
+                            {{ cad.name }}
+
+                        </option>
+
+                    </select>
+                    <app-field-error [control]="domainCadForm.get('cadName')" label="CAD" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-2">
+
+                    <div>
+                        <label class="dlg-label">
+                            Year Number
+                        </label>
+                        <input
+                            type="number"
+                            formControlName="yearNumber"
+                            class="dlg-input">
+                        <app-field-error [control]="domainCadForm.get('yearNumber')" label="Year number" />
+                    </div>
+
+                    <div>
+                        <label class="dlg-label">
+                            Semester
+                        </label>
+                        <input
+                            type="number"
+                            formControlName="semester"
+                            class="dlg-input">
+                        <app-field-error [control]="domainCadForm.get('semester')" label="Semester" />
+                    </div>
+
+                </div>
+
+            </form>
+
+            <!-- Dialog Footer -->
+
+            <div class="dlg-footer">
+
+                <button
+                    type="button"
+                    (click)="closeModal()"
+                    class="dlg-btn dlg-btn-secondary">
+                    Cancel
+                </button>
+
+                <button
+                    *ngIf="!editMode"
+                    type="button"
+                    (click)="save()"
+                    class="dlg-btn dlg-btn-primary">
+                    Save
+                </button>
+
+                <button
+                    *ngIf="editMode"
+                    type="button"
+                    (click)="save()"
+                    class="dlg-btn dlg-btn-primary">
+                    Update
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= END PAGE ================= -->
+
+</div>
+
+<!-- ================= NO PERMISSION ================= -->
+
+<ng-template #noPermission>
+
+    <div class="min-h-screen flex items-center justify-center bg-zinc-900">
+
+        <div class="bg-zinc-950 rounded-2xl shadow-xl p-10 max-w-md w-full text-center">
+
+            <div class="flex justify-center mb-6">
+
+                <div class="w-20 h-20 rounded-full bg-rose-500/15 flex items-center justify-center">
+
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        class="w-10 h-10 text-rose-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor">
+
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/>
+
+                    </svg>
+
+                </div>
+
+            </div>
+
+            <h2 class="text-3xl font-bold text-white mb-3">
+
+                Access Denied
+
+            </h2>
+
+            <p class="text-zinc-400 mb-8">
+
+                You don't have permission to access the Domain CAD Mapping module.
+
+            </p>
+
+            <button
+                routerLink="/dashboard"
+                class="w-full font-semibold py-3 rounded-lg transition bg-(--accent) hover:bg-(--accent-hover) text-(--on-accent) shadow-[0_8px_20px_-8px_rgba(var(--accent-rgb),0.8)] cursor-pointer">
+
+                Go to Dashboard
+
+            </button>
+
+        </div>
+
+    </div>
+
+</ng-template>

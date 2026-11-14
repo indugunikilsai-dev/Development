@@ -1,0 +1,8 @@
+{
+  "/api": {
+    "target": "https://college-a.178-104-255-148.sslip.io",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn"
+  }
+}

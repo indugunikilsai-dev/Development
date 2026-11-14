@@ -1,6 +1,8 @@
 import { ChangeDetectorRef, Component, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { Student } from '../../../features/services/student/student';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { catchError, forkJoin, map, of } from 'rxjs';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Breadcrumb, BreadcrumbItem } from '../breadcrumb/breadcrumb';
@@ -19,8 +21,12 @@ export class StudentCourses {
   feedback = new Feedback();
    courses: any[] = [];
   loading = false;
+  // True only when the courses request failed, so an error is never mistaken for "no courses".
+  loadFailed = false;
   domainId!: number ;
   domainName = '';
+  // True when the student may open FuCad and a CAD is mapped to this domain.
+  hasCad = false;
 
   get breadcrumb(): BreadcrumbItem[] {
     return [
@@ -57,12 +63,23 @@ export class StudentCourses {
   }
 
   this.loading = true;
+  this.loadFailed = false;
 
-  this.api.getstudentcourse(this.domainId).subscribe({
+  // FuCad is offered only with VIEW_STUDENT_CADS and a CAD mapped to this domain.
+  // A failed CAD lookup counts as "no CAD" and never hides the courses.
+  const hasCad$ = this.auth.hasPermission('VIEW_STUDENT_CADS')
+    ? this.api.getstudentcads(this.domainId).pipe(
+        map((r: any) => Array.isArray(r?.data) && r.data.length > 0),
+        catchError(() => of(false))
+      )
+    : of(false);
 
-    next: (res: any) => {
+  forkJoin({ res: this.api.getstudentcourse(this.domainId), hasCad: hasCad$ }).subscribe({
+
+    next: ({ res, hasCad }: { res: any; hasCad: boolean }) => {
       this.cd.markForCheck();
 
+      this.hasCad = hasCad;
       const allCourses = res?.data ?? [];
 
       const hasDomainField = allCourses.some(
@@ -74,10 +91,25 @@ export class StudentCourses {
         : allCourses;
 
       this.loading = false;
+
+      // A domain with no courses opens the FuCad design workspace instead of an empty list,
+      // but only with VIEW_STUDENT_CADS and a CAD mapped to this domain; otherwise the empty list shows.
+      if (this.courses.length === 0 && this.auth.hasPermission('VIEW_STUDENT_CADS')) {
+        this.api.getstudentcads(this.domainId).subscribe({
+          next: (cads: any) => {
+            if (Array.isArray(cads?.data) && cads.data.length > 0) {
+              this.router.navigate(['/main/freecad'], { replaceUrl: true });
+            }
+          },
+          // No answer means no CAD: keep the empty course list.
+          error: () => {}
+        });
+      }
     },
 
-    error: (err) => {
+    error: (err: HttpErrorResponse) => {
       this.feedback.fail(err, 'Unable to load your courses.');
+      this.loadFailed = true;
       this.cd.markForCheck();
 
 

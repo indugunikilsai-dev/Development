@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Observable, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { Api } from '../../../core/api/api';
 import { RunCodeRequest, SubmitCodeRequest } from '../../../shared/models/api-response.model';
 
@@ -12,6 +13,29 @@ export class Student {
   }
   getstudentcourse(domainId:number){
     return this.api.GET(`Student/domain/${domainId}/courses`);
+  }
+  // CAD tools mapped to a domain the student belongs to.
+  getstudentcads(domainId:number){
+    return this.api.GET(`Student/domain/${domainId}/cads`);
+  }
+  // True when at least one of the student's domains has a CAD mapped to it.
+  // Any failure counts as "no CAD", so FuCad stays hidden rather than half-open.
+  hasMappedCad(): Observable<boolean> {
+    return this.getstudentdomain().pipe(
+      switchMap((res: any) => {
+        const ids: number[] = (res?.data ?? [])
+          .map((d: any) => d?.domainId)
+          .filter((id: any) => id != null);
+        if (!ids.length) return of(false);
+        return forkJoin(ids.map(id =>
+          this.getstudentcads(id).pipe(
+            map((r: any) => Array.isArray(r?.data) && r.data.length > 0),
+            catchError(() => of(false))
+          )
+        )).pipe(map(results => results.some(Boolean)));
+      }),
+      catchError(() => of(false))
+    );
   }
   getstudentcourseById(domainId:number,courseId:number){
     return this.api.GET(`Student/domain/${domainId}/course/${courseId}/assignments`);

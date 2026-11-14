@@ -1,0 +1,334 @@
+<div class="cad-page">
+
+  <!-- =====================================================
+       PAGE HEADER
+  ====================================================== -->
+  <section class="page-header">
+
+    <div class="header-left">
+
+      <div class="header-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.8"
+            d="M12 2.5 3.5 7v10L12 21.5 20.5 17V7L12 2.5zM3.5 7 12 11.5 20.5 7M12 11.5v10" />
+        </svg>
+      </div>
+
+      <div>
+        <h1>CAD Management</h1>
+
+        <p>
+          Create, organize and manage CAD designs
+        </p>
+      </div>
+
+    </div>
+
+
+    <div class="header-right">
+
+      <!-- STAT CARD -->
+      <div
+        class="cad-stat"
+        *ngIf="auth.hasPermission('VIEW_CAD')">
+
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.8"
+              d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v11a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 17.5v-11z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.8"
+              d="M8 8h8M8 12h8M8 16h5" />
+          </svg>
+        </div>
+
+        <div>
+          <span>Total CADs</span>
+          <strong>{{ cads.length }}</strong>
+        </div>
+
+      </div>
+
+      <!-- ADD CAD -->
+      <button
+        *ngIf="auth.hasPermission('CREATE_CAD')"
+        type="button"
+        (click)="openAddModal()"
+        class="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-opacity bg-(--accent) hover:bg-(--accent-hover) text-(--on-accent) shadow-[0_8px_20px_-8px_rgba(var(--accent-rgb),0.8)] cursor-pointer">
+        <span class="text-lg leading-none">+</span>
+        Add CAD
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- =====================================================
+       TABLE CARD
+  ====================================================== -->
+  <div
+    class="table-card"
+    *ngIf="auth.hasPermission('VIEW_CAD')">
+
+    <!-- TABLE HEADER -->
+    <div class="table-header">
+
+      <div>
+        <span class="section-label">
+          OVERVIEW
+        </span>
+
+        <h2>
+          CAD List
+        </h2>
+
+        <p>
+          Manage all available CAD designs
+        </p>
+      </div>
+
+      <div class="cad-count">
+        {{ cads.length }}
+        <span>
+          CADs
+        </span>
+      </div>
+
+    </div>
+
+
+    <!-- TABLE -->
+    <div class="table-container">
+
+      <table>
+
+        <thead>
+          <tr>
+            <th class="number-column">#</th>
+            <th>CAD</th>
+            <th>Description</th>
+            <th
+              *ngIf="auth.hasPermission('UPDATE_CAD') || auth.hasPermission('DELETE_CAD')"
+              class="center-column">
+              Actions
+            </th>
+          </tr>
+        </thead>
+
+
+        <tbody>
+
+          <tr *ngFor="let cad of cads; let i = index">
+
+            <!-- NUMBER -->
+            <td class="number-cell">
+              {{ i + 1 }}
+            </td>
+
+            <!-- NAME -->
+            <td>
+              <div class="cad-name">
+                <div class="cad-avatar">
+                  {{ cad.name?.charAt(0)?.toUpperCase() }}
+                </div>
+                <div>
+                  <strong>
+                    {{ cad.name }}
+                  </strong>
+                  <span>
+                    CAD #{{ cad.id }}
+                  </span>
+                </div>
+              </div>
+            </td>
+
+            <!-- DESCRIPTION -->
+            <td>
+              <div class="description-cell">
+                {{ cad.description }}
+              </div>
+            </td>
+
+            <!-- ACTIONS -->
+            <td
+              *ngIf="auth.hasPermission('UPDATE_CAD') || auth.hasPermission('DELETE_CAD')"
+              class="center-column">
+
+              <div class="action-buttons">
+
+                <!-- EDIT -->
+                <button
+                  *ngIf="auth.hasPermission('UPDATE_CAD')"
+                  (click)="editCad(cad)"
+                  class="icon-btn edit-btn"
+                  title="Edit CAD">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.8"
+                      d="M16.862 3.487a2.1 2.1 0 013.65 2.1L8.2 17.9l-4.7 1.2 1.2-4.7L16.862 3.487z" />
+                    <path
+                      stroke-linecap="round"
+                      stroke-width="1.8"
+                      d="M14.5 5.5l4 4" />
+                  </svg>
+                </button>
+
+                <!-- DELETE -->
+                <button
+                  *ngIf="auth.hasPermission('DELETE_CAD')"
+                  (click)="deleteCad(cad.id)"
+                  class="icon-btn delete-btn"
+                  title="Delete CAD">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.8"
+                      d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                  </svg>
+                </button>
+
+              </div>
+
+            </td>
+
+          </tr>
+
+
+          <!-- EMPTY STATE -->
+          <tr *ngIf="cads.length === 0">
+
+            <td
+              [attr.colspan]="(auth.hasPermission('UPDATE_CAD') || auth.hasPermission('DELETE_CAD')) ? 4 : 3"
+              class="empty-state">
+
+              <div class="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                    d="M4 7h16M4 12h16M4 17h10" />
+                </svg>
+              </div>
+
+              <strong>
+                No CADs found
+              </strong>
+
+              <span>
+                Add your first CAD using the button above.
+              </span>
+
+            </td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================================
+       ADD / EDIT DIALOG
+  ====================================================== -->
+  <div
+    *ngIf="showModal"
+    class="dlg-overlay">
+
+    <div class="dlg">
+
+      <!-- Dialog Header -->
+      <div class="dlg-header">
+        <div class="dlg-heading">
+          <span class="dlg-icon"><ng-container *ngIf="isEditMode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16.86 4.49a2.1 2.1 0 1 1 2.97 2.97L8.5 18.79l-4 1 1-4 11.36-11.3Z" /></svg></ng-container><ng-container *ngIf="!isEditMode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-width="2" d="M12 5v14M5 12h14" /></svg></ng-container></span>
+          <div class="min-w-0">
+            <h3 class="dlg-title">{{ isEditMode ? 'Edit CAD' : 'Add CAD' }}</h3>
+            <p class="dlg-subtitle">{{ isEditMode ? 'Update the details below and save your changes.' : 'Fill in the details below to add a new record.' }}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          (click)="closeModal()"
+          class="dlg-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-width="2" d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
+      </div>
+
+      <!-- Dialog Body -->
+      <form [formGroup]="cadForm" class="dlg-body">
+
+        <div class="dlg-field">
+          <label class="dlg-label">
+            CAD Name
+          </label>
+          <input
+            type="text"
+            formControlName="name" maxlength="100"
+            placeholder="e.g. Gear Assembly"
+            class="dlg-input">
+          <app-field-error [control]="cadForm.get('name')" label="CAD name" />
+        </div>
+
+        <div class="dlg-field">
+          <label class="dlg-label">
+            Description
+          </label>
+          <textarea
+            rows="3"
+            formControlName="description" maxlength="1000"
+            placeholder="Describe this CAD design..."
+            class="dlg-input"></textarea>
+          <app-field-error [control]="cadForm.get('description')" label="Description" />
+        </div>
+
+      </form>
+
+      <!-- Dialog Footer -->
+      <div class="dlg-footer">
+
+        <button
+          type="button"
+          (click)="closeModal()"
+          class="dlg-btn dlg-btn-secondary">
+          Cancel
+        </button>
+
+        <button
+          *ngIf="!isEditMode"
+          type="button"
+          (click)="createCad()"
+          class="dlg-btn dlg-btn-primary">
+          Save
+        </button>
+
+        <button
+          *ngIf="isEditMode"
+          type="button"
+          (click)="updateCad()"
+          class="dlg-btn dlg-btn-primary">
+          Update
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

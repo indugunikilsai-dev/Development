@@ -9,6 +9,7 @@ import { AuthServices } from '../../../features/services/auth/auth-services';
 import { ThemeStore } from '../../../core/store/theme';
 import { clearSession } from '../../../core/auth/token-storage';
 import { FacultyCourseService } from '../../../features/services/facultycourse/facultycourse-service';
+import { Student } from '../../../features/services/student/student';
 @Component({
   selector: 'app-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,10 +23,15 @@ export class Header implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly facultyApi = inject(FacultyCourseService);
+  private readonly studentApi = inject(Student);
 
   // The "My Courses" link only appears for people who actually have courses assigned.
   hasAssignedCourses = false;
   private assignedCoursesChecked = false;
+
+  // The "FuCad" and "FreeCAD" links only appear with VIEW_STUDENT_CADS and a CAD mapped to one of the student's domains.
+  hasMappedCad = false;
+  private mappedCadChecked = false;
 
   username:string|undefined='';
   collegeLogo = '';
@@ -79,6 +85,14 @@ colleges = [
           },
           // Optional: without the answer the "My Courses" link simply stays hidden.
           error: () => {}
+        });
+      }
+
+      if (!this.mappedCadChecked && this.auth.hasPermission('VIEW_STUDENT_CADS')) {
+        this.mappedCadChecked = true;
+        this.studentApi.hasMappedCad().subscribe(hasCad => {
+          this.hasMappedCad = hasCad;
+          this.cdr.markForCheck();
         });
       }
 
@@ -171,6 +185,7 @@ colleges = [
     '/main/department-management',
     '/main/branch-management',
     '/main/domain',
+    '/main/cad-management',
     '/main/task',
     '/main/course',
     '/main/user',
@@ -189,6 +204,7 @@ colleges = [
     '/main/college-department-mapping',
     '/main/department-branch-mapping',
     '/main/domain-course-mapping',
+    '/main/domain-cad-mapping',
     '/main/course-task-mapping',
     '/main/course-assignment-mapping',
     '/main/student-domain-course-mapping',
@@ -234,6 +250,7 @@ colleges = [
       'VIEW_DEPARTMENT',
       'VIEW_BRANCH',
       'VIEW_DOMAIN',
+      'VIEW_CAD',
       'VIEW_COURSE',
       'VIEW_USER',
       'VIEW_ROLE',
@@ -257,6 +274,7 @@ colleges = [
       'VIEW_COLLEGE_DEPARTMENT',
       'VIEW_DEPARTMENT_BRANCH',
       'VIEW_DOMAIN_COURSE_MAP',
+      'VIEW_DOMAIN_CAD_MAP',
       'VIEW_COURSE_TASK_MAP',
       'VIEW_COURSE_ASSIGNMENT_MAP',
       'VIEW_STUDENT_DOMAIN_COURSE_MAP',

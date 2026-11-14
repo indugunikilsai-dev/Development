@@ -1,0 +1,627 @@
+@reference "tailwindcss";
+
+/* =========================================================
+   DOMAIN MANAGEMENT
+   Professional Enterprise Admin UI
+   ========================================================= */
+
+:host {
+  @apply block min-h-screen bg-black text-white;
+  color-scheme: dark;
+}
+
+
+/* =========================================================
+   PAGE
+   ========================================================= */
+
+.cad-page {
+  @apply min-h-screen w-full bg-black px-5 py-6 lg:px-8 lg:py-8;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.page-header {
+  @apply mb-8 flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between;
+}
+
+.header-left {
+  @apply flex items-center gap-4;
+}
+
+.header-icon {
+  @apply flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl
+         border border-(--accent)/40 bg-(--accent)/15 text-(--accent-text);
+}
+
+.header-icon svg {
+  @apply h-7 w-7;
+}
+
+.header-left h1 {
+  @apply text-2xl font-bold tracking-tight text-white lg:text-3xl;
+}
+
+.header-left p {
+  @apply mt-1 text-sm text-zinc-400;
+}
+
+
+/* =========================================================
+   STAT CARD
+   ========================================================= */
+
+.cad-stat {
+  @apply flex min-w-[210px] items-center gap-4 rounded-2xl
+         border border-white/10 bg-zinc-950 px-5 py-4
+         shadow-sm;
+}
+
+.stat-icon {
+  @apply flex h-11 w-11 items-center justify-center
+         rounded-xl bg-(--accent)/15 text-(--accent-text);
+}
+
+.stat-icon svg {
+  @apply h-5 w-5;
+}
+
+.cad-stat span {
+  @apply block text-xs font-medium uppercase tracking-wide text-zinc-500;
+}
+
+.cad-stat strong {
+  @apply mt-0.5 block text-2xl font-bold text-white;
+}
+
+
+/* =========================================================
+   MAIN LAYOUT
+   ========================================================= */
+
+.cad-layout {
+  @apply grid grid-cols-1 gap-6 xl:grid-cols-[380px_minmax(0,1fr)];
+}
+
+
+/* =========================================================
+   FORM CARD
+   ========================================================= */
+
+.form-card {
+  @apply overflow-hidden rounded-2xl border border-white/10
+         bg-zinc-950 shadow-sm;
+}
+
+.card-heading {
+  @apply flex items-start justify-between border-b border-white/10
+         px-6 py-5;
+}
+
+.section-label {
+  @apply text-[10px] font-bold tracking-[0.16em] text-(--accent-text);
+}
+
+.card-heading h2,
+.table-header h2 {
+  @apply mt-1 text-xl font-bold text-white;
+}
+
+.card-heading p,
+.table-header p {
+  @apply mt-1 text-xs leading-5 text-zinc-400;
+}
+
+.form-heading-icon {
+  @apply flex h-10 w-10 items-center justify-center rounded-xl
+         bg-zinc-950/5 text-(--accent-text);
+}
+
+.form-heading-icon svg {
+  @apply h-5 w-5;
+}
+
+
+/* =========================================================
+   FORM
+   ========================================================= */
+
+.cad-form {
+  @apply p-6;
+}
+
+.form-group {
+  @apply mb-5;
+}
+
+.form-group label {
+  @apply mb-2 block text-sm font-semibold text-white;
+}
+
+.form-group label span {
+  @apply ml-1 text-rose-400;
+}
+
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+
+.input-wrapper {
+  @apply flex items-center rounded-xl border border-white/10
+         bg-black transition-all duration-200;
+}
+
+.input-wrapper:focus-within {
+  @apply border-(--accent) ring-4 ring-(--accent)/25;
+}
+
+.input-wrapper svg {
+  @apply ml-3 h-5 w-5 shrink-0 text-zinc-500;
+}
+
+.input-wrapper input {
+  @apply w-full border-0 bg-transparent px-3 py-3
+         text-sm text-white outline-none;
+}
+
+.input-wrapper input::placeholder {
+  @apply text-zinc-500;
+}
+
+
+/* =========================================================
+   TEXTAREA
+   ========================================================= */
+
+.textarea-wrapper {
+  @apply rounded-xl border border-white/10 bg-black transition-all duration-200;
+}
+
+.textarea-wrapper:focus-within {
+  @apply border-(--accent) ring-4 ring-(--accent)/25;
+}
+
+.textarea-wrapper textarea {
+  @apply w-full resize-none rounded-xl border-0 bg-transparent
+         px-4 py-3 text-sm leading-6 text-white
+         outline-none;
+}
+
+.textarea-wrapper textarea::placeholder {
+  @apply text-zinc-500;
+}
+
+
+/* =========================================================
+   VALIDATION
+   ========================================================= */
+
+.validation-error {
+  @apply mt-1.5 block text-xs font-medium text-rose-400;
+}
+
+
+/* =========================================================
+   YEAR GRID
+   ========================================================= */
+
+.year-grid {
+  @apply grid grid-cols-2 gap-3;
+}
+
+
+/* =========================================================
+   ACTIVE STATUS
+   ========================================================= */
+
+.active-box {
+  @apply mb-6 flex items-center justify-between rounded-xl
+         border border-white/10 bg-black/40 px-4 py-3;
+}
+
+.active-info {
+  @apply flex items-center gap-3;
+}
+
+.active-icon {
+  @apply flex h-9 w-9 items-center justify-center rounded-lg
+         bg-(--accent)/15 text-(--accent-text);
+}
+
+.active-icon svg {
+  @apply h-5 w-5;
+}
+
+.active-info strong {
+  @apply block text-sm font-semibold text-white;
+}
+
+.active-info span {
+  @apply mt-0.5 block text-[11px] text-zinc-500;
+}
+
+
+/* =========================================================
+   TOGGLE
+   ========================================================= */
+
+.switch {
+  @apply relative inline-flex h-6 w-11 cursor-pointer;
+}
+
+.switch input {
+  @apply absolute h-0 w-0 opacity-0;
+}
+
+.slider {
+  @apply absolute inset-0 cursor-pointer rounded-full
+         bg-zinc-700 transition-all duration-200;
+}
+
+.slider::before {
+  content: "";
+  @apply absolute left-1 top-1 h-4 w-4 rounded-full
+         bg-white shadow-sm transition-all duration-200;
+}
+
+.switch input:checked + .slider {
+  @apply bg-(--accent);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(20px);
+}
+
+
+/* =========================================================
+   FORM ACTIONS
+   ========================================================= */
+
+.form-actions {
+  @apply flex gap-3;
+}
+
+.primary-btn,
+.update-btn,
+.secondary-btn {
+  @apply flex flex-1 items-center justify-center gap-2
+         rounded-xl px-4 py-3 text-sm font-semibold
+         transition-all duration-200;
+}
+
+.primary-btn {
+  @apply bg-(--accent) text-(--on-accent);
+  box-shadow: 0 8px 20px -8px rgba(var(--accent-rgb), 0.8);
+}
+
+.primary-btn:hover {
+  @apply bg-(--accent-hover) shadow-md;
+}
+
+.update-btn {
+  @apply bg-(--accent) text-(--on-accent);
+  box-shadow: 0 8px 20px -8px rgba(var(--accent-rgb), 0.8);
+}
+
+.update-btn:hover {
+  @apply bg-(--accent-hover) shadow-md;
+}
+
+.secondary-btn {
+  @apply border border-white/10 bg-zinc-950/5 text-zinc-300;
+}
+
+.secondary-btn:hover {
+  @apply bg-zinc-950/10 text-white;
+}
+
+.primary-btn svg,
+.update-btn svg,
+.secondary-btn svg {
+  @apply h-4 w-4;
+}
+
+
+/* =========================================================
+   TABLE CARD
+   ========================================================= */
+
+.table-card {
+  @apply min-w-0 overflow-hidden rounded-2xl border border-white/10
+         bg-zinc-950 shadow-sm;
+}
+
+
+/* =========================================================
+   TABLE HEADER
+   ========================================================= */
+
+.table-header {
+  @apply flex items-center justify-between border-b border-white/10
+         px-6 py-5;
+}
+
+.cad-count {
+  @apply flex items-baseline gap-1 rounded-xl
+         bg-zinc-950/5 px-4 py-2 text-lg font-bold text-white;
+}
+
+.cad-count span {
+  @apply text-xs font-medium text-zinc-500;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.table-container {
+  @apply w-full overflow-x-auto;
+}
+
+table {
+  @apply w-full min-w-[850px] border-collapse;
+}
+
+
+/* =========================================================
+   TABLE HEADER
+   ========================================================= */
+
+thead {
+  @apply bg-zinc-900;
+}
+
+thead tr {
+  @apply border-b border-white/10;
+}
+
+th {
+  @apply whitespace-nowrap px-5 py-4 text-left
+         text-[10px] font-bold uppercase tracking-[0.08em]
+         text-zinc-500;
+}
+
+.number-column {
+  @apply w-14;
+}
+
+.center-column {
+  @apply text-center;
+}
+
+
+/* =========================================================
+   TABLE BODY
+   ========================================================= */
+
+tbody tr {
+  @apply border-b border-white/10 transition-colors duration-150;
+}
+
+tbody tr:hover {
+  @apply bg-zinc-950/[0.04];
+}
+
+td {
+  @apply px-5 py-4 text-sm text-zinc-400;
+}
+
+.number-cell {
+  @apply font-medium text-zinc-500;
+}
+
+
+/* =========================================================
+   DOMAIN NAME
+   ========================================================= */
+
+.cad-name {
+  @apply flex items-center gap-3;
+}
+
+.cad-avatar {
+  @apply flex h-10 w-10 shrink-0 items-center justify-center
+         rounded-xl bg-gradient-to-br from-(--accent) to-(--accent-soft) text-sm font-bold text-(--on-accent);
+}
+
+.cad-name strong {
+  @apply block max-w-[180px] truncate text-sm font-semibold text-white;
+}
+
+.cad-name span {
+  @apply mt-0.5 block text-[10px] text-zinc-500;
+}
+
+
+/* =========================================================
+   DESCRIPTION
+   ========================================================= */
+
+.description-cell {
+  @apply max-w-[280px] truncate text-sm text-zinc-400;
+}
+
+
+/* =========================================================
+   YEAR BADGE
+   ========================================================= */
+
+.year-badge {
+  @apply inline-flex min-w-[32px] items-center justify-center
+         rounded-lg bg-white/5 px-2.5 py-1.5
+         text-xs font-semibold text-zinc-400;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.status-badge {
+  @apply inline-flex items-center gap-2 rounded-full
+         px-3 py-1.5 text-xs font-semibold;
+}
+
+.status-active {
+  @apply bg-emerald-500/15 text-emerald-400;
+}
+
+.status-inactive {
+  @apply bg-rose-500/15 text-rose-400;
+}
+
+.status-dot {
+  @apply h-1.5 w-1.5 rounded-full bg-current;
+}
+
+
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
+
+.action-buttons {
+  @apply flex justify-center gap-2;
+}
+
+.icon-btn {
+  @apply flex h-9 w-9 items-center justify-center
+         rounded-lg border transition-all duration-150;
+}
+
+.icon-btn svg {
+  @apply h-4 w-4;
+}
+
+.edit-btn {
+  @apply border-(--accent)/50 bg-(--accent)/15 text-(--accent-text-strong);
+}
+
+.edit-btn:hover {
+  @apply bg-(--accent) text-(--on-accent);
+}
+
+.delete-btn {
+  @apply border-rose-500/40 bg-rose-500/10 text-rose-400;
+}
+
+.delete-btn:hover {
+  @apply bg-rose-600 text-white;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.empty-state {
+  @apply py-16 text-center;
+}
+
+.empty-icon {
+  @apply mx-auto mb-4 flex h-14 w-14 items-center justify-center
+         rounded-2xl bg-white/5 text-zinc-500;
+}
+
+.empty-icon svg {
+  @apply h-6 w-6;
+}
+
+.empty-state strong {
+  @apply block text-sm font-semibold text-white;
+}
+
+.empty-state span {
+  @apply mt-1 block text-xs text-zinc-500;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1024px) {
+
+  .cad-layout {
+    @apply grid-cols-1;
+  }
+
+}
+
+
+@media (max-width: 640px) {
+
+  .cad-page {
+    @apply px-4 py-5;
+  }
+
+  .header-left {
+    @apply items-start;
+  }
+
+  .header-icon {
+    @apply h-11 w-11 rounded-xl;
+  }
+
+  .header-icon svg {
+    @apply h-5 w-5;
+  }
+
+  .header-left h1 {
+    @apply text-xl;
+  }
+
+  .cad-stat {
+    @apply w-full;
+  }
+
+  .card-heading,
+  .table-header {
+    @apply px-4;
+  }
+
+  .cad-form {
+    @apply p-4;
+  }
+
+  .form-actions {
+    @apply flex-col;
+  }
+
+  .primary-btn,
+  .update-btn,
+  .secondary-btn {
+    @apply w-full;
+  }
+
+}
+
+
+/* =========================================================
+   MODAL ANIMATION
+   ========================================================= */
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal {
+  animation: modal-pop 0.18s ease-out;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
