@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: LGPL-2.1-or-later
+"""File service for the portal's FreeCAD page: moves files between the user's PC (through the
+browser) and FreeCAD running in this container. FreeCAD's side is the PortalBridge module.
+
+    GET  /status                       {"freecad": true|false}  is FreeCAD running and answering
+    GET  /events?after=<cursor>        long-poll for FreeCAD's File menu events (see PortalBridgeGui)
+                                       {"cursor", "events": [...]}; without "after" it only returns
+                                       the current cursor
+    GET  /file?event=<event id>        the file a "saved" / "download" event refers to
+    POST /upload?name=&mode=open|import&document=   body = the file chosen on the PC
+                                       saved in its own folder, then opened in FreeCAD
+                                       {"path", "opened", "document"?, "error"?}
+    POST /save?as=0|1                  same as File > Save (as=1: Save As) in FreeCAD
+
+Only files that FreeCAD itself reported in an event can be downloaded; nothing else on the
+container's disk is reachable. Uploads never overwrite anything.
+"""
+import json, os, re, sys, time, uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, quote, urlparse
+
+BRIDGE = os.environ.get("PORTAL_BRIDGE_DIR", "/config/.portal-bridge")
+WORK = os.path.realpath(os.environ.get("PORTAL_WORK_DIR", "/config/PortalFiles"))
+PORT = int(os.environ.get("PORTAL_FILES_PORT", "3002"))
+ORIGINS = [o.strip() for o in os.environ.get("PORTAL_ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+UPLOAD_MAX = int(os.environ.get("PORTAL_UPLOAD_MAX_MB", "200")) * 1024 * 1024
+
+# Formats FreeCAD can open. Macros and scripts (.FCMacro, .py) are not accepted: opening runs code.
+IMPORT_TYPES = {
+    "fcstd", "step", "stp", "iges", "igs", "brep", "brp", "stl", "obj", "ply", "off", "amf",
+    "3mf", "dxf", "dwg", "svg", "ifc", "dae", "gltf", "glb", "wrl", "vrml", "csg", "scad",
+}
+
+HEARTBEAT_MAX_AGE = 10   # FreeCAD touches its heartbeat every second
+LONG_POLL = 25
+OPEN_TIMEOUT = 90        # a large STEP file takes a while to open
+SAVE_TIMEOUT = 60
+EVENT_ID = re.compile(r"^\d{20}-[0-9a-f]{6}$")
+
+
+def path(*parts):
+    return os.path.join(BRIDGE, *parts)
+
+
+def freecad_alive():
+    try:
+        return time.time() - os.path.getmtime(path("heartbeat")) < HEARTBEAT_MAX_AGE
+    except OSError:
+        return False
+
+
+def mark_portal_seen():
+    # FreeCAD only routes its File menu to the PC while a portal page is listening.
+    with open(path("portal-seen"), "w") as f:
+        f.write(str(int(time.time())))
+
+
+def event_ids():
+    try:
+        return sorted(n[:-5] for n in os.listdir(path("events")) if n.endswith(".json"))
+    except OSError:
+        return []
+
+
+def read_event(event_id):
+    if not EVENT_ID.match(event_id or ""):
+        return None
+    try:
+        with open(path("events", event_id + ".json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def safe_name(name):
+    name = os.path.basename(name.replace("\\", "/"))
+    name = re.sub(r'[\x00-\x1f/:*?"<>|]+', "_", name).strip(" .")
+    stem, ext = os.path.splitext(name)
+    return (stem[:120] or "upload") + ext
+
+
+class BridgeError(Exception):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+
+
+def ask_freecad(request, timeout):
+    """Hand a request to FreeCAD and wait for its answer."""
+    if not freecad_alive():
+        raise BridgeError(503, "FreeCAD is not running yet. Wait until it has started and try again.")
+    rid = uuid.uuid4().hex
+    pending = path("requests", rid + ".json")
+    result = path("results", rid + ".json")
+    os.makedirs(os.path.dirname(pending), exist_ok=True)
+    os.makedirs(os.path.dirname(result), exist_ok=True)
+    with open(pending + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(request, f)
+    os.replace(pending + ".tmp", pending)
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if os.path.exists(result):
+            with open(result, encoding="utf-8") as f:
+                answer = json.load(f)
+            os.remove(result)
+            return answer
+        time.sleep(0.2)
+    try:
+        os.remove(pending)   # withdraw it so it does not run later
+    except OSError:
+        pass
+    raise BridgeError(504, "FreeCAD did not answer in time. Close any open dialog in FreeCAD and try again.")
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def cors(self):
+        origin = self.headers.get("Origin", "")
+        if "*" in ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", "*")
+        elif origin in ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+        self.send_header("Access-Control-Expose-Headers", "Content-Disposition")
+
+    def send_json(self, code, data):
+        body = json.dumps(data).encode()
+        self.send_response(code)
+        self.cors()
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def fail(self, code, message):
+        self.send_json(code, {"error": message})
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.cors()
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_GET(self):
+        url = urlparse(self.path)
+        query = parse_qs(url.query)
+        if url.path == "/status":
+            self.send_json(200, {"freecad": freecad_alive()})
+        elif url.path == "/events":
+            self.events(query.get("after", [None])[0])
+        elif url.path == "/file":
+            self.send_event_file(query.get("event", [""])[0])
+        else:
+            self.fail(404, "Not found")
+
+    def do_POST(self):
+        url = urlparse(self.path)
+        query = parse_qs(url.query)
+        try:
+            if url.path == "/upload":
+                self.upload(query)
+            elif url.path == "/save":
+                self.discard_body()
+                answer = ask_freecad({"action": "save", "as": query.get("as", ["0"])[0] == "1"}, SAVE_TIMEOUT)
+                if not answer.get("ok"):
+                    return self.fail(409, answer.get("error", "FreeCAD could not save the design"))
+                self.send_json(200, {"ok": True})
+            else:
+                self.discard_body()
+                self.fail(404, "Not found")
+        except BridgeError as e:
+            self.fail(e.code, str(e))
+
+    def events(self, after):
+        mark_portal_seen()
+        ids = event_ids()
+        if not after:   # first call: start from now, old events are not replayed
+            return self.send_json(200, {"cursor": ids[-1] if ids else "0", "events": []})
+        deadline = time.time() + LONG_POLL
+        while True:
+            new = [i for i in ids if i > after]
+            if new or time.time() >= deadline:
+                break
+            time.sleep(0.25)
+            ids = event_ids()
+        # "path" (the file in the container) is only an identifier for the portal; the file
+        # itself is fetched by event id.
+        events = [e for e in (read_event(i) for i in new) if e]
+        mark_portal_seen()
+        self.send_json(200, {"cursor": new[-1] if new else after, "events": events})
+
+    def send_event_file(self, event_id):
+        event = read_event(event_id)
+        full = event and event.get("type") in ("saved", "download") and os.path.realpath(event.get("path", ""))
+        if not full or not os.path.isfile(full):
+            return self.fail(404, "The file is no longer available. Save it again in FreeCAD.")
+        name = event.get("name") or os.path.basename(full)
+        self.send_response(200)
+        self.cors()
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(name))
+        self.send_header("Content-Length", str(os.path.getsize(full)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        with open(full, "rb") as f:
+            while chunk := f.read(65536):
+                self.wfile.write(chunk)
+
+    def discard_body(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        if 0 < length <= 1024 * 1024:
+            self.rfile.read(length)
+        elif length:
+            self.close_connection = True
+
+    def upload(self, query):
+        name = safe_name(query.get("name", [""])[0])
+        ext = os.path.splitext(name)[1].lstrip(".").lower()
+        mode = "import" if query.get("mode", ["open"])[0] == "import" else "open"
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self.close_connection = True
+            return self.fail(411, "Missing file size")
+        if ext not in IMPORT_TYPES:
+            self.close_connection = True
+            return self.fail(415, "FreeCAD cannot open .{} files".format(ext or "?"))
+        if length <= 0 or length > UPLOAD_MAX:
+            self.close_connection = True
+            return self.fail(413, "The file must be between 1 byte and {} MB".format(UPLOAD_MAX // 1048576))
+
+        # Each file gets its own folder, so it keeps the exact name it has on the PC.
+        folder = os.path.join(WORK, uuid.uuid4().hex[:12])
+        os.makedirs(folder, exist_ok=True)
+        target = os.path.join(folder, name)
+        tmp = target + ".part"
+        try:
+            remaining = length
+            with open(tmp, "wb") as f:
+                while remaining:
+                    chunk = self.rfile.read(min(65536, remaining))
+                    if not chunk:
+                        raise ConnectionError("upload interrupted")
+                    f.write(chunk)
+                    remaining -= len(chunk)
+            os.replace(tmp, target)
+        except (OSError, ConnectionError):
+            for p in (tmp, folder):
+                try:
+                    os.rmdir(p) if p == folder else os.remove(p)
+                except OSError:
+                    pass
+            self.close_connection = True
+            return self.fail(400, "The upload did not complete")
+
+        request = {"action": "open", "path": target, "mode": mode,
+                   "document": query.get("document", [""])[0]}
+        answer = ask_freecad(request, OPEN_TIMEOUT)
+        if not answer.get("ok"):
+            return self.send_json(200, {"opened": False, "error": answer.get("error", "FreeCAD could not open the file")})
+        # "file" is the document's own file in the container; its "saved" events carry the same
+        # value, which is how the portal knows which PC file to write back to.
+        self.send_json(200, {"opened": True, "document": answer.get("document", ""),
+                             "file": answer.get("file", "")})
+
+    def log_message(self, *args):
+        pass
+
+
+if __name__ == "__main__":
+    for sub in ("requests", "results", "events"):
+        os.makedirs(path(sub), exist_ok=True)
+    os.makedirs(WORK, exist_ok=True)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    server.daemon_threads = True
+    print("portal-files: listening on port {}".format(PORT), flush=True)
+    server.serve_forever()

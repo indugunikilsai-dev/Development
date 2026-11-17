@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1
+#
+# Stock FreeCAD streamed to the browser (lscr.io/linuxserver/freecad), plus the portal bridge:
+# File > Open / Import / Save / Save As / Export in FreeCAD work with the files on the user's PC
+# through the portal's FreeCAD page instead of the container's folders. Builds in seconds.
+#
+#   docker compose -f fucad-stream/docker-compose.freecad.yml up -d --build
+#
+# The FuCad image (Dockerfile) installs the same bridge; see bridge/.
+
+FROM lscr.io/linuxserver/freecad:1.1.4-ls158
+
+#   PORTAL_BRIDGE_DIR       folder FreeCAD and the file service talk through; setting it turns the
+#                           bridge on (bridge/PortalBridge/InitGui.py)
+#   PORTAL_WORK_DIR         where open documents live in the container while they are being edited
+#   PORTAL_FILES_PORT       the file service; 3000/3001 are the stream's own HTTP/HTTPS ports
+#   PORTAL_ALLOWED_ORIGINS  comma-separated portal origins allowed to call the file service ("*" = any)
+#   PORTAL_UPLOAD_MAX_MB    largest file the PC file picker may send
+ENV PORTAL_BRIDGE_DIR=/config/.portal-bridge \
+    PORTAL_WORK_DIR=/config/PortalFiles \
+    PORTAL_FILES_PORT=3002 \
+    PORTAL_ALLOWED_ORIGINS=* \
+    PORTAL_UPLOAD_MAX_MB=200
+
+# No Selkies sidebar / controls over the stream: the page shows FreeCAD only.
+ENV SELKIES_UI_SHOW_SIDEBAR=false
+
+# The stream draws FreeCAD's cursor itself instead of handing it to the browser as a CSS cursor:
+# browsers drop larger cursor images (fullscreen with Windows display scaling), which left the
+# cursor invisible in fullscreen.
+ENV SELKIES_USE_BROWSER_CURSORS=false
+
+# Only FreeCAD on the desktop: no terminal (foot) in the right-click menu or anywhere else, and
+# FreeCAD is started again if it is ever closed.
+ENV DISABLE_TERMINALS=true \
+    RESTART_APP=true
+
+# FreeCAD loads every folder in its Mod directory at start.
+COPY bridge/PortalBridge/InitGui.py bridge/PortalBridge/PortalBridgeGui.py /opt/freecad/usr/Mod/PortalBridge/
+COPY --chmod=755 bridge/portal-files /usr/local/bin/portal-files
+COPY --chmod=755 bridge/svc-portal-files.run /etc/s6-overlay/s6-rc.d/svc-portal-files/run
+
+# The file service runs as an s6 service next to the desktop, as the desktop user (abc).
+RUN sed -i 's/\r$//' /usr/local/bin/portal-files /etc/s6-overlay/s6-rc.d/svc-portal-files/run \
+      /opt/freecad/usr/Mod/PortalBridge/*.py \
+ && echo longrun > /etc/s6-overlay/s6-rc.d/svc-portal-files/type \
+ && mkdir -p /etc/s6-overlay/s6-rc.d/svc-portal-files/dependencies.d \
+ && touch /etc/s6-overlay/s6-rc.d/svc-portal-files/dependencies.d/init-services \
+          /etc/s6-overlay/s6-rc.d/user/contents.d/svc-portal-files
+
+# Hide the window title bar (logo, "Unnamed - FreeCAD 1.1.4", close button) on the main
+# window; dialogs keep theirs so they can still be moved and closed. The desktop's window
+# manager is labwc, and its config is copied from /defaults/labwc.xml on every start.
+RUN sed -i 's|</windowRules>|  <windowRule identifier="freecad" type="normal" serverDecoration="no" />\n  </windowRules>|' \
+      /defaults/labwc.xml \
+ && grep -q 'identifier="freecad"' /defaults/labwc.xml
+
+EXPOSE 3000 3001 3002

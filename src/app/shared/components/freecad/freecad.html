@@ -1,40 +1,81 @@
-<div class="fcd">
+<div class="fcd" #frameHost>
 
-  <div class="fcd-bar">
-    <div class="fcd-title">
-      <strong>FreeCAD</strong>
-      <span>FuCad 26.3.2 desktop</span>
-    </div>
+  @if (filesUrl) {
+    <input #fileInput type="file" hidden [accept]="accept" (change)="onFileChosen($event)" />
+  }
 
-    <span class="fcd-status" [attr.data-status]="status()">
-      <i></i>
-      @switch (status()) {
-        @case ('online') { Connected }
-        @case ('checking') { Connecting… }
-        @case ('offline') { Server not running }
-        @default { Not configured }
-      }
-    </span>
-
+  <!-- Hidden in full screen: FreeCAD's own menu bar (File › Import / Save) is the top row there. -->
+  @if (!isFullscreen()) {
+  <div class="fcd-bar fcd-bar-slim">
     <div class="fcd-actions">
-      <button type="button" title="Reconnect" (click)="reload()" [disabled]="!streamUrl">
-        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
-        <span>Reconnect</span>
-      </button>
-      <button type="button" title="Full screen" (click)="fullscreen()" [disabled]="status() !== 'online'">
-        <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-        <span>Full screen</span>
-      </button>
-      @if (streamUrl) {
-        <a [href]="streamUrl" target="_blank" rel="noopener" title="Open in a new tab">
-          <svg viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
-          <span>New tab</span>
-        </a>
+      @if (filesUrl) {
+        <button type="button"
+                title="Import a file from this PC into the open design (same as File › Import)"
+                (click)="importFromPc()" [disabled]="!filesReady() || busy()">
+          @if (busy()) { <i class="fcd-mini-spin"></i> } @else {
+            <svg viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg>
+          }
+          <span>Import</span>
+        </button>
+        <button type="button"
+                title="Save the open design to this PC (same as File › Save)"
+                (click)="save()" [disabled]="!filesReady() || busy()">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg>
+          <span>Save</span>
+        </button>
+      }
+      @if (isFullscreen()) {
+        <button type="button" title="Exit full screen" (click)="exitFullscreen()">
+          <svg viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+          <span>Exit full screen</span>
+        </button>
+      } @else {
+        <button type="button" title="Full screen" (click)="fullscreen()" [disabled]="status() !== 'online'">
+          <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          <span>Full screen</span>
+        </button>
       }
     </div>
   </div>
+  }
 
-  <div class="fcd-stage" #frameHost>
+  @if (notice(); as n) {
+    <div class="fcd-notice" [attr.data-kind]="n.kind" role="status" aria-live="polite">
+      <span>{{ n.text }}</span>
+      <button type="button" title="Dismiss" (click)="dismissNotice()">×</button>
+    </div>
+  }
+
+  <div class="fcd-stage">
+    @if (askFullscreen() && !prompt()) {
+      <div class="fcd-prompt-backdrop">
+        <div class="fcd-prompt" role="dialog" aria-modal="true" aria-labelledby="fcd-fs-title">
+          <h2 id="fcd-fs-title">Switch to full screen</h2>
+          <p>FreeCAD works in full screen. Click OK to go back to full screen.</p>
+          <div class="fcd-prompt-actions">
+            <button type="button" class="fcd-primary" (click)="confirmFullscreen()">OK</button>
+          </div>
+        </div>
+      </div>
+    }
+    @if (prompt(); as p) {
+      <div class="fcd-prompt-backdrop">
+        <div class="fcd-prompt" role="dialog" aria-modal="true" aria-labelledby="fcd-prompt-title">
+          <h2 id="fcd-prompt-title">{{ promptTitle(p) }}</h2>
+          <p>{{ promptText(p) }}</p>
+          <div class="fcd-prompt-actions">
+            <button type="button" (click)="dismiss(p)">Cancel</button>
+            @if (p.kind === 'save' && p.handle && canWriteBack) {
+              <button type="button" (click)="saveAs(p)">Save as…</button>
+            }
+            <button type="button" class="fcd-primary" (click)="confirm(p)">{{ confirmLabel(p) }}</button>
+          </div>
+          @if (prompts().length > 1) {
+            <p class="fcd-muted">{{ prompts().length - 1 }} more waiting</p>
+          }
+        </div>
+      </div>
+    }
     @if (status() === 'online' && safeUrl) {
       @for (k of [frameKey()]; track k) {
         <iframe
@@ -51,12 +92,11 @@
             <p>Connecting to FuCad…</p>
           }
           @case ('offline') {
-            <h2>The FuCad server is not running</h2>
-            <p>FuCad runs as a desktop application inside a Docker container and is streamed to this page.
+            <h2>The FreeCAD server is not running</h2>
+            <p>FreeCAD runs as a desktop application inside a Docker container and is streamed to this page.
                Start it from the project folder:</p>
-            <pre>docker compose -f fucad-stream/docker-compose.yml up -d</pre>
-            <p class="fcd-muted">The first start builds FuCad from <code>FuCad/</code> and takes about 1–2 hours.
-               This page connects automatically once it is up ({{ streamUrl }}).</p>
+            <pre>docker compose -f fucad-stream/docker-compose.freecad.yml up -d --build</pre>
+            <p class="fcd-muted">This page connects automatically once it is up ({{ streamUrl }}).</p>
             @if (mixedContent) {
               <p class="fcd-warn">This portal is served over HTTPS, so the stream must be HTTPS as well; browsers block an HTTP frame here.</p>
             }

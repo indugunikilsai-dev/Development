@@ -1,0 +1,34 @@
+# Stock FreeCAD streamed to the browser for the portal's FreeCAD page, with File > Open / Save
+# working on the user's PC (see Dockerfile.freecad and bridge/).
+#
+#   docker compose -f fucad-stream/docker-compose.freecad.yml up -d --build
+#
+# The stream is http://localhost:3000 (fucadStreamUrl), the file service http://localhost:3002
+# (fucadFilesUrl).
+services:
+  cad:
+    build:
+      context: .
+      dockerfile: Dockerfile.freecad
+    image: freecad-portal:1.1.4
+    container_name: cad
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      # File service: moves files between FreeCAD and the PC through the portal page.
+      - "3002:3002"
+    # Qt and the web client use shared memory; the default 64 MB makes the session unstable.
+    shm_size: 1gb
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TITLE=FreeCAD
+      # Set to the portal's origin (e.g. https://portal.example.edu) once it is deployed.
+      - PORTAL_ALLOWED_ORIGINS=*
+    volumes:
+      # FreeCAD settings, and the documents open in it, survive container restarts.
+      - freecad-config:/config
+    restart: unless-stopped
+
+volumes:
+  freecad-config:

@@ -1,0 +1,7 @@
+#!/usr/bin/with-contenv bash
+# s6 service: the portal file service (portal-files), as the desktop user.
+
+mkdir -p "${PORTAL_BRIDGE_DIR}" "${PORTAL_WORK_DIR}"
+chown abc:abc "${PORTAL_BRIDGE_DIR}" "${PORTAL_WORK_DIR}"
+
+exec s6-setuidgid abc python3 /usr/local/bin/portal-files

@@ -9,14 +9,18 @@ services:
     build:
       context: ../FuCad
       dockerfile: ../fucad-stream/Dockerfile
+      # The portal bridge (File > Open / Save on the user's PC), shared with Dockerfile.freecad.
+      additional_contexts:
+        bridge: ./bridge
       args:
         BUILD_JOBS: 6
     image: fucad-stream:26.3.2
     container_name: fucad
     ports:
       - "3000:3000"
-      # Download service for the portal's "Downloads" button (files saved from FuCad).
       - "3001:3001"
+      # File service: moves files between FuCad and the PC through the portal page.
+      - "3002:3002"
     # Qt and the web client use shared memory; the default 64 MB makes the session unstable.
     shm_size: 1gb
     environment:
@@ -24,12 +28,8 @@ services:
       - PGID=1000
       - TITLE=FuCad
     volumes:
-      # FuCad settings, macros and saved files survive container restarts.
+      # FuCad settings, and the documents open in it, survive container restarts.
       - fucad-config:/config
-      # Save / Save As in FuCad open this folder, which is a real folder on this PC.
-      # Default: D:\devo\fucad-files (next to this repo). Choose another with FUCAD_HOST_DIR, e.g.
-      #   $env:FUCAD_HOST_DIR = "$env:USERPROFILE\Documents\FuCad"; docker compose ... up -d
-      - ${FUCAD_HOST_DIR:-../fucad-files}:/config/FuCad-Files
     restart: unless-stopped
 
 volumes:

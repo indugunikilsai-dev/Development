@@ -180,3 +180,163 @@
     display: none;
   }
 }
+
+/* ---- Open / Import / Save on this PC ---- */
+
+.fcd {
+  /* The notice row comes and goes, so stack with flex rather than fixed grid rows. */
+  display: flex;
+  flex-direction: column;
+}
+
+.fcd-stage {
+  flex: 1;
+}
+
+.fcd-actions {
+  flex-wrap: wrap;
+}
+
+/* Only Import / Save / Full screen: a thin row above FreeCAD. */
+.fcd-bar-slim {
+  padding: 4px 10px;
+}
+
+.fcd-bar-slim .fcd-actions button {
+  padding: 4px 9px;
+}
+
+.fcd-actions .fcd-primary {
+  border-color: var(--accent-soft, #4f7cff);
+  background: color-mix(in srgb, var(--accent-soft, #4f7cff) 22%, #18181d);
+}
+
+.fcd-actions .fcd-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent-soft, #4f7cff) 32%, #18181d);
+}
+
+.fcd-sep {
+  width: 1px;
+  margin: 4px 2px;
+  background: #29292f;
+}
+
+.fcd-mini-spin {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #3a3a44;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: fcd-spin 0.8s linear infinite;
+}
+
+.fcd-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-bottom: 1px solid #29292f;
+  background: #15151a;
+  color: #d4d4dc;
+  line-height: 1.45;
+}
+
+.fcd-notice span {
+  flex: 1;
+  min-width: 0;
+}
+
+.fcd-notice[data-kind='ok'] { background: #12201a; color: #8fe0a5; }
+.fcd-notice[data-kind='error'] { background: #241416; color: #ffb4b6; }
+
+.fcd-notice button {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fcd-notice button:hover {
+  background: #ffffff14;
+}
+
+.fcd-prompt-backdrop {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #00000080;
+}
+
+.fcd-prompt {
+  width: min(440px, 100%);
+  padding: 20px;
+  border: 1px solid #29292f;
+  border-radius: 12px;
+  background: #15151a;
+  box-shadow: 0 18px 50px #00000080;
+}
+
+.fcd-prompt h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.fcd-prompt p {
+  margin: 0;
+  color: #b7b7c2;
+  line-height: 1.5;
+}
+
+.fcd-prompt .fcd-muted {
+  margin-top: 12px;
+}
+
+.fcd-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.fcd-prompt-actions button {
+  padding: 7px 14px;
+  border: 1px solid #29292f;
+  border-radius: 7px;
+  background: #18181d;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.fcd-prompt-actions button:hover {
+  background: #202027;
+}
+
+.fcd-prompt-actions .fcd-primary {
+  border-color: var(--accent-soft, #4f7cff);
+  background: color-mix(in srgb, var(--accent-soft, #4f7cff) 30%, #18181d);
+}
+
+.fcd-prompt-actions .fcd-primary:hover {
+  background: color-mix(in srgb, var(--accent-soft, #4f7cff) 42%, #18181d);
+}
+
+/* Full screen covers the whole page, so Import / Save stay above FreeCAD. */
+.fcd:fullscreen {
+  width: 100vw;
+  height: 100vh;
+}

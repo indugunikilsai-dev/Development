@@ -5,4 +5,6 @@ export const environment = {
   singleInstance: true,
   // FuCad desktop stream started with fucad-stream/docker-compose.yml.
   fucadStreamUrl: 'http://localhost:3000/',
+  // FreeCAD file service: File > Open / Save work with this PC (fucad-stream/bridge).
+  fucadFilesUrl: 'http://localhost:3002/',
 };

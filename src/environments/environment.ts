@@ -6,6 +6,6 @@ export const environment = {
   singleInstance: false,
   // FuCad desktop stream for the FreeCAD page (fucad-stream/). Empty until it is deployed over HTTPS.
   fucadStreamUrl: '',
-  // FuCad download service (the "Downloads" button). Empty until it is deployed over HTTPS.
+  // FreeCAD file service (File > Open / Save on this PC). Empty until it is deployed over HTTPS.
   fucadFilesUrl: '',
 };

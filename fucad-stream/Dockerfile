@@ -47,155 +47,52 @@ RUN grep -rIlZ $'\r' . | xargs -0 -r sed -i 's/\r$//' \
  && rm -rf build "${PIXI_CACHE_DIR}" \
  && test -x .pixi/envs/default/bin/FuCad
 
-# Folder that docker-compose.yml maps to a folder on the host PC. Save / Save As open here, so
-# saved designs land on the PC and not only inside the container.
-ENV FUCAD_SAVE_DIR=/config/FuCad-Files \
-    FUCAD_FILES_PORT=3001
+# Portal bridge (bridge/, shared with Dockerfile.freecad): File > Open / Import / Save / Save As /
+# Export in FuCad work with the files on the user's PC through the portal's FreeCAD page.
+#   PORTAL_BRIDGE_DIR       folder FuCad and the file service talk through; setting it turns the bridge on
+#   PORTAL_WORK_DIR         where open documents live in the container while they are being edited
+#   PORTAL_FILES_PORT       the file service; 3000/3001 are the stream's own HTTP/HTTPS ports
+#   PORTAL_ALLOWED_ORIGINS  comma-separated portal origins allowed to call the file service ("*" = any)
+#   PORTAL_UPLOAD_MAX_MB    largest file the PC file picker may send
+ENV PORTAL_BRIDGE_DIR=/config/.portal-bridge \
+    PORTAL_WORK_DIR=/config/PortalFiles \
+    PORTAL_FILES_PORT=3002 \
+    PORTAL_ALLOWED_ORIGINS=* \
+    PORTAL_UPLOAD_MAX_MB=200
 
-# Read-only download service for the portal's "Downloads" button: lists the files in
-# FUCAD_SAVE_DIR and serves each one as a download. It never writes or deletes anything.
-#   GET /list               -> [{"path", "size", "modified"}], newest first
-#   GET /file?path=<path>   -> the file, as an attachment
-COPY --chmod=755 <<'EOF' /usr/local/bin/fucad-files
-#!/usr/bin/env python3
-import json, os, sys
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, quote, urlparse
+# No Selkies sidebar / controls over the stream: the page shows FuCad only.
+ENV SELKIES_UI_SHOW_SIDEBAR=false
 
-ROOT = os.path.realpath(os.environ.get("FUCAD_SAVE_DIR", "/config/FuCad-Files"))
-PORT = int(os.environ.get("FUCAD_FILES_PORT", "3001"))
+# The stream draws FuCad's cursor itself instead of handing it to the browser as a CSS cursor:
+# browsers drop larger cursor images (fullscreen with Windows display scaling), which left the
+# cursor invisible in fullscreen.
+ENV SELKIES_USE_BROWSER_CURSORS=false
 
+# Only FuCad on the desktop: no terminal (foot) in the right-click menu or anywhere else, and
+# FuCad is started again if it is ever closed.
+ENV DISABLE_TERMINALS=true \
+    RESTART_APP=true
 
-def list_files():
-    files = []
-    for folder, dirs, names in os.walk(ROOT):
-        dirs[:] = [d for d in dirs if not d.startswith(".")]
-        for name in names:
-            if name.startswith("."):
-                continue
-            full = os.path.join(folder, name)
-            try:
-                st = os.stat(full)
-            except OSError:
-                continue
-            files.append({
-                "path": os.path.relpath(full, ROOT).replace(os.sep, "/"),
-                "size": st.st_size,
-                "modified": int(st.st_mtime * 1000),
-            })
-    files.sort(key=lambda f: f["modified"], reverse=True)
-    return files
-
-
-def resolve(rel):
-    # Only regular files inside ROOT; "..", absolute paths and symlinks out of ROOT are refused.
-    full = os.path.realpath(os.path.join(ROOT, rel))
-    if os.path.commonpath([full, ROOT]) != ROOT or not os.path.isfile(full):
-        return None
-    return full
-
-
-class Handler(BaseHTTPRequestHandler):
-    def cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Expose-Headers", "Content-Disposition")
-
-    def fail(self, code, message):
-        body = json.dumps({"error": message}).encode()
-        self.send_response(code)
-        self.cors()
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.cors()
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.end_headers()
-
-    def do_GET(self):
-        url = urlparse(self.path)
-        if url.path == "/list":
-            body = json.dumps(list_files()).encode()
-            self.send_response(200)
-            self.cors()
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        elif url.path == "/file":
-            rel = parse_qs(url.query).get("path", [""])[0]
-            full = resolve(rel) if rel else None
-            if full is None:
-                return self.fail(404, "File not found")
-            name = os.path.basename(full)
-            self.send_response(200)
-            self.cors()
-            self.send_header("Content-Type", "application/octet-stream")
-            self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(name))
-            self.send_header("Content-Length", str(os.path.getsize(full)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            with open(full, "rb") as f:
-                while chunk := f.read(65536):
-                    self.wfile.write(chunk)
-        else:
-            self.fail(404, "Not found")
-
-    def log_message(self, *args):
-        pass
-
-
-if __name__ == "__main__":
-    os.makedirs(ROOT, exist_ok=True)
-    try:
-        server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    except OSError:
-        sys.exit(0)  # already running (FuCad was restarted inside the same session)
-    server.serve_forever()
-EOF
+# The bridge is a FuCad module; install it next to FuCad's own modules (the folder holding Part).
+COPY --from=bridge PortalBridge /tmp/PortalBridge
+COPY --from=bridge --chmod=755 portal-files /usr/local/bin/portal-files
+COPY --from=bridge --chmod=755 svc-portal-files.run /etc/s6-overlay/s6-rc.d/svc-portal-files/run
+RUN mod_dir="$(dirname "$(find /opt/fucad-src/.pixi/envs/default -type d -path '*/Mod/Part' -print -quit)")" \
+ && test -d "$mod_dir" \
+ && rm -rf "$mod_dir/PortalBridge" && mkdir -p "$mod_dir/PortalBridge" \
+ && cp /tmp/PortalBridge/InitGui.py /tmp/PortalBridge/PortalBridgeGui.py "$mod_dir/PortalBridge/" \
+ && rm -rf /tmp/PortalBridge \
+ && sed -i 's/\r$//' /usr/local/bin/portal-files /etc/s6-overlay/s6-rc.d/svc-portal-files/run "$mod_dir"/PortalBridge/*.py \
+ && echo longrun > /etc/s6-overlay/s6-rc.d/svc-portal-files/type \
+ && mkdir -p /etc/s6-overlay/s6-rc.d/svc-portal-files/dependencies.d \
+ && touch /etc/s6-overlay/s6-rc.d/svc-portal-files/dependencies.d/init-services \
+          /etc/s6-overlay/s6-rc.d/user/contents.d/svc-portal-files
 
 # Start FuCad as the only application on the streamed desktop.
 COPY --chmod=755 <<'EOF' /usr/local/bin/start-fucad
 #!/bin/bash
 source /opt/fucad-env.sh
 export LIBGL_ALWAYS_SOFTWARE=1
-
-# Point FuCad's file dialogs at the host-mapped folder on every start (FuCad otherwise reopens the
-# last folder used). The setting is "FileOpenSavePath" in FuCad's user.cfg.
-mkdir -p "$FUCAD_SAVE_DIR"
-python - "${XDG_CONFIG_HOME:-$HOME/.config}/FuCad/user.cfg" "$FUCAD_SAVE_DIR" <<'PY' || true
-import os, sys
-import xml.etree.ElementTree as ET
-
-cfg, folder = sys.argv[1], sys.argv[2]
-if os.path.exists(cfg):
-    try:
-        tree = ET.parse(cfg)
-    except ET.ParseError:
-        sys.exit(0)  # never overwrite a settings file we cannot read
-else:
-    tree = ET.ElementTree(ET.Element("FCParameters"))
-
-node = tree.getroot()
-for name in ("Root", "BaseApp", "Preferences", "General"):
-    child = next((c for c in node.findall("FCParamGroup") if c.get("Name") == name), None)
-    node = child if child is not None else ET.SubElement(node, "FCParamGroup", Name=name)
-
-entry = next((c for c in node.findall("FCText") if c.get("Name") == "FileOpenSavePath"), None)
-if entry is None:
-    entry = ET.SubElement(node, "FCText", Name="FileOpenSavePath")
-entry.text = folder
-
-os.makedirs(os.path.dirname(cfg), exist_ok=True)
-tree.write(cfg, encoding="utf-8", xml_declaration=True)
-PY
-
-# Download service for the portal's "Downloads" button (exits at once if it is already running).
-python /usr/local/bin/fucad-files >/dev/null 2>&1 &
 
 # The desktop runs Wayland with XWayland; prefer native Wayland, fall back to X11.
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland;xcb}"
@@ -205,4 +102,4 @@ EOF
 
 RUN echo '/usr/local/bin/start-fucad' > /defaults/autostart
 
-EXPOSE 3000 3001
+EXPOSE 3000 3001 3002
